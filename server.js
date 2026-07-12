@@ -20,8 +20,15 @@ app.use(require('./routes/mcp').createMcpApp()); // POST /mcp — remote MCP ser
 // which is exactly what broke mcp-remote's pre-connection discovery request.
 app.get('/.well-known/*', (req, res) => res.status(404).json({ error: 'Not found' }));
 
-// SPA fallback
+// SPA fallback (GET only — anything else unmatched falls to the JSON 404 below)
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Catches any remaining unmatched request (any method other than GET, any path) — e.g. a
+// POST /register from an MCP client's OAuth dynamic-client-registration probe, which this
+// app has no route for since it only supports static bearer tokens, not OAuth. Without this,
+// Express's own default handler renders an HTML "Cannot POST /register" page, which is just
+// as much an "expected JSON, got HTML" trap for API clients as the SPA catch-all was.
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`[server] Job tracker running on port ${PORT}`));
