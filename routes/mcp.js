@@ -177,7 +177,12 @@ function requireApiTokenForMcp(req, res, next) {
 }
 
 function createMcpApp() {
-  const mcpApp = createMcpExpressApp();
+  // createMcpExpressApp() defaults to host '127.0.0.1', which auto-attaches DNS-rebinding
+  // Host-header validation that rejects anything but localhost/127.0.0.1/::1 — wrong for a
+  // self-hosted app meant to be reached over the LAN (or later, a public hostname behind a
+  // reverse proxy). The bearer-token check in requireApiTokenForMcp is the real auth boundary
+  // here, so skip that middleware by passing a non-localhost host value.
+  const mcpApp = createMcpExpressApp({ host: '0.0.0.0' });
 
   // Stateless: a fresh server + transport per request, no session store needed. Fine for a
   // personal-scale tool — trades away SSE-based multi-turn session resumption for
