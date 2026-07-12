@@ -132,13 +132,16 @@ itself. Two ways to use it:
   over `curl` (or any HTTP client). Works with any agent that has shell access.
 - **Remote MCP server** (`POST /mcp`) — a Streamable HTTP MCP server exposing
   `list_jobs`/`find_jobs`/`add_job`/`update_job`/`delete_job` as tools, for MCP-capable
-  clients (Claude Desktop, a claude.ai custom connector, etc.) that don't have shell
-  access. Requires the job-tracker instance to be network-reachable from wherever the
-  client runs — `localhost` works for a same-machine client, but a cloud-hosted client
-  needs the app exposed via a public HTTPS URL (reverse proxy or tunnel) first.
+  clients that don't have shell access. Requires the job-tracker instance to be
+  network-reachable from wherever the client runs.
 
-Both authenticate the same way and are equally capable — use whichever fits the tools
-your agent actually has.
+Both authenticate the same way with the same token. In practice, the **Claude Code CLI**
+(`claude mcp add --transport http job-tracker http://<host>:3000/mcp --header "Authorization:
+Bearer <token>"`) is the supported MCP client for this endpoint. Claude Desktop's native
+"Add custom connector" UI and the `mcp-remote` bridge both require OAuth, which this app
+doesn't implement (just the bearer token) — neither can complete their auth handshake against
+it. Use the Skill or Claude Code's MCP support; other MCP clients that support a plain static
+bearer header (rather than requiring OAuth) should also work, but haven't been tested here.
 
 ---
 
