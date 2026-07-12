@@ -14,6 +14,12 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use(require('./routes/mcp').createMcpApp()); // POST /mcp — remote MCP server, see routes/mcp.js
 
+// Protocol-discovery paths (e.g. OAuth resource metadata that MCP clients like mcp-remote
+// probe before connecting to /mcp) must 404 properly rather than fall through to the SPA
+// catch-all below — a 200 HTML response there breaks any client expecting real 404/JSON,
+// which is exactly what broke mcp-remote's pre-connection discovery request.
+app.get('/.well-known/*', (req, res) => res.status(404).json({ error: 'Not found' }));
+
 // SPA fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
