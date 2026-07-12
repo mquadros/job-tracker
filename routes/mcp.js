@@ -205,6 +205,20 @@ function createMcpApp() {
     }
   });
 
+  // The Streamable HTTP spec allows clients to GET this endpoint to open a standalone SSE
+  // stream for server-initiated messages, and DELETE it to end a session. Neither fits our
+  // stateless design (fresh server+transport per POST, no session store) — without an explicit
+  // handler here, an unmatched GET/DELETE would fall through past this sub-app entirely and
+  // hit the SPA catch-all in server.js, returning index.html where a client expects JSON. Per
+  // spec, a server that doesn't support the GET stream should return 405 so clients fall back
+  // to POST-only, which is exactly the stateless mode this server already runs in.
+  mcpApp.get('/mcp', (req, res) => {
+    res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed: this server is stateless and has no SSE stream to open' }, id: null });
+  });
+  mcpApp.delete('/mcp', (req, res) => {
+    res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed: this server is stateless and has no session to delete' }, id: null });
+  });
+
   return mcpApp;
 }
 
