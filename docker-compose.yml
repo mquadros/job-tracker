@@ -1,0 +1,26 @@
+services:
+  job-tracker:
+    build: .
+    container_name: job-tracker
+    restart: unless-stopped
+    ports:
+      - "3000:3000"         # change host port if needed, e.g. "8080:3000"
+    volumes:
+      - job-tracker-data:/app/data   # persists SQLite DB across restarts
+    environment:
+      # --- CHANGE THESE before first run ---
+      ADMIN_USER: admin
+      ADMIN_PASS: changeme          # initial admin password (change after first login)
+      JWT_SECRET: replace-with-a-long-random-string   # openssl rand -hex 32
+      # --- Optional ---
+      PORT: 3000
+      DB_PATH: /app/data/tracker.db
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/login.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  job-tracker-data:
+    driver: local

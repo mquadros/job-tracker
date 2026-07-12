@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script>(function(){var t=localStorage.getItem('theme');if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="navbar">
+  <span class="nav-brand">Job Tracker</span>
+  <div class="nav-right">
+    <button class="btn-primary" id="btn-add-job">+ Add job</button>
+    <button class="btn-ghost" id="btn-profile"><span id="nav-user"></span></button>
+    <button class="btn-ghost" id="btn-insights">Insights</button>
+    <button class="btn-ghost" id="btn-kanban">Kanban</button>
+    <button class="btn-ghost" id="btn-logout">Sign out</button>
+  </div>
+</nav>
+
+<!-- Stats -->
+<main class="main-wrap">
+  <div class="stats-row" id="stats-row"></div>
+
+  <!-- Search -->
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder="Search company or title&hellip;">
+  </div>
+
+  <!-- Filters (collapsible) -->
+  <div class="filters-toggle-row">
+    <button class="btn-ghost" id="btn-filters-toggle">Filters &#9662;</button>
+    <button class="btn-ghost" id="btn-export">Export CSV</button>
+  </div>
+  <div class="filters-panel" id="filters-panel" hidden>
+    <div class="filter-row" id="filter-row"></div>
+
+    <div class="date-filter-row">
+      <label for="date-preset">Applied</label>
+      <select id="date-preset">
+        <option value="all">All time</option>
+        <option value="today">Today</option>
+        <option value="this-week">This week</option>
+        <option value="last-week">Last week</option>
+        <option value="this-month">This month</option>
+        <option value="last-month">Last month</option>
+        <option value="this-year">This year</option>
+        <option value="custom">Custom range&hellip;</option>
+      </select>
+      <div id="custom-date-range" class="date-range-inputs" hidden>
+        <input type="date" id="date-from">
+        <span>to</span>
+        <input type="date" id="date-to">
+      </div>
+    </div>
+  </div>
+
+  <!-- Job cards -->
+  <div id="cards-container"></div>
+</main>
+
+<!-- Add/Edit Job Modal -->
+<div id="job-modal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 id="modal-title">Add job</h2>
+      <button class="btn-ghost" id="modal-close">&times;</button>
+    </div>
+    <form id="job-form">
+      <div class="form-grid">
+        <div class="field">
+          <label>Company *</label>
+          <input name="company" required>
+        </div>
+        <div class="field">
+          <label>Title *</label>
+          <input name="title" required>
+        </div>
+        <div class="field">
+          <label>Location</label>
+          <input name="location" placeholder="Boston, MA">
+        </div>
+        <div class="field">
+          <label>Location type</label>
+          <select name="location_type">
+            <option value="remote">Remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">Onsite</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fit</label>
+          <select name="fit" id="fit-select">
+            <option value="strong">Strong</option>
+            <option value="good" selected>Good</option>
+            <option value="stretch">Stretch</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Stage</label>
+          <select name="stage">
+            <option>Not applied</option>
+            <option>Applied</option>
+            <option>Recruiter screen</option>
+            <option>Interview</option>
+            <option>Final round</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Outcome</label>
+          <select name="outcome">
+            <option value="">In Progress</option>
+            <option>Offer</option>
+            <option>Rejected</option>
+            <option>Withdrawn</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Applied date</label>
+          <input type="date" name="applied_date">
+        </div>
+        <div class="field full-col">
+          <label>Job posting link</label>
+          <input type="url" name="job_url" placeholder="https://...">
+        </div>
+        <div class="field full-col" style="flex-direction:row;gap:1.5rem;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;color:var(--text);">
+            <input type="checkbox" name="has_referral" style="width:auto;"> Had a referral
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;color:var(--text);">
+            <input type="checkbox" name="recruiter_contact" style="width:auto;"> Contacted by a recruiter
+          </label>
+        </div>
+        <div class="field full-col">
+          <label>Resume</label>
+          <input type="file" name="resume_upload" accept=".pdf,.doc,.docx">
+          <div class="file-current" id="resume-current"></div>
+        </div>
+        <div class="field full-col">
+          <label>Cover letter</label>
+          <input type="file" name="cover_letter_upload" accept=".pdf,.doc,.docx">
+          <div class="file-current" id="cover-letter-current"></div>
+        </div>
+        <div class="field full-col">
+          <label>Notes</label>
+          <textarea name="notes" rows="3" placeholder="Contacts, follow-ups, interview notes..."></textarea>
+        </div>
+      </div>
+      <div id="job-form-error" class="error-msg" style="margin:0 1.5rem;" hidden></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="modal-cancel">Cancel</button>
+        <button type="submit" class="btn-primary" id="modal-submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profile-modal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Your profile</h2>
+      <button class="btn-ghost" id="profile-close">&times;</button>
+    </div>
+    <div id="profile-info" style="padding:0 1.5rem 1.25rem;font-size:13px;color:var(--text-muted);"></div>
+    <div style="padding:0 1.5rem 1.25rem;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text);font-size:14px;">
+        <input type="checkbox" id="dark-mode-toggle" style="width:auto;">
+        Night mode
+      </label>
+    </div>
+
+    <!-- API access -->
+    <div style="padding:1rem 1.5rem 1.5rem;border-top:1px solid var(--border);">
+      <h3 style="font-size:14px;font-weight:500;margin-bottom:.5rem;">API access</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem;line-height:1.5;">Generate a personal token so an AI agent or script can manage your jobs (list, add, update, delete) without ever knowing your password. Scoped to jobs only &mdash; it cannot change your password or account settings. Shown once; store it somewhere safe.</p>
+      <div id="api-token-status" style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem;">Loading&hellip;</div>
+      <div id="api-token-display" class="file-current" hidden style="font-size:13px;word-break:break-all;background:var(--bg);padding:.6rem .75rem;border-radius:6px;margin-bottom:.75rem;"></div>
+      <button type="button" class="btn-ghost" id="btn-generate-token">Generate token</button>
+      <button type="button" class="btn-danger-sm" id="btn-revoke-token" hidden style="margin-left:8px;">Revoke</button>
+    </div>
+
+    <div style="padding:1rem 1.5rem 1.5rem;border-top:1px solid var(--border);">
+      <h3 style="font-size:14px;font-weight:500;margin-bottom:.75rem;">Change your password</h3>
+      <form id="profile-pw-form">
+        <div class="form-grid">
+          <div class="field"><label>Current password</label><input name="current" type="password" required></div>
+          <div class="field"><label>New password</label><input name="next" type="password" required></div>
+        </div>
+        <div id="profile-pw-error" class="error-msg" hidden></div>
+        <div id="profile-pw-ok" class="ok-msg" hidden>Password updated.</div>
+        <button class="btn-primary" type="submit" style="margin-top:.75rem;">Update password</button>
+      </form>
+    </div>
+
+    <!-- Admin section (shown only for admins) -->
+    <div id="admin-section" hidden style="padding:1rem 1.5rem 1.5rem;border-top:1px solid var(--border);">
+      <h3 style="font-size:14px;font-weight:500;margin-bottom:.75rem;">Admin &mdash; Users</h3>
+      <div id="user-list" style="margin-bottom:1.5rem;"></div>
+      <h4 style="font-size:13px;font-weight:500;margin-bottom:.75rem;">Create user</h4>
+      <form id="create-user-form">
+        <div class="form-grid">
+          <div class="field"><label>Username</label><input name="username" required></div>
+          <div class="field"><label>Password</label><input name="password" type="password" required></div>
+          <div class="field">
+            <label>Role</label>
+            <select name="role"><option value="user">User</option><option value="admin">Admin</option></select>
+          </div>
+        </div>
+        <div id="user-error" class="error-msg" hidden></div>
+        <button class="btn-primary" type="submit" style="margin-top:.75rem;">Create user</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="filters.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

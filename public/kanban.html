@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script>(function(){var t=localStorage.getItem('theme');if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Tracker — Kanban</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <span class="nav-brand">Job Tracker — Kanban</span>
+  <div class="nav-right">
+    <a class="btn-ghost" href="index.html" style="text-decoration:none;display:inline-flex;align-items:center;">&larr; Dashboard</a>
+    <a class="btn-ghost" href="insights.html" style="text-decoration:none;display:inline-flex;align-items:center;">Insights</a>
+    <button class="btn-ghost" id="btn-logout">Sign out</button>
+  </div>
+</nav>
+
+<main class="main-wrap kanban-wrap">
+  <!-- Search -->
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder="Search company or title&hellip;">
+  </div>
+
+  <!-- Filters (collapsible) -->
+  <div class="filters-toggle-row">
+    <button class="btn-ghost" id="btn-filters-toggle">Filters &#9662;</button>
+  </div>
+  <div class="filters-panel" id="filters-panel" hidden>
+    <div class="filter-row" id="filter-row"></div>
+    <div class="date-filter-row">
+      <label for="date-preset">Applied</label>
+      <select id="date-preset">
+        <option value="all">All time</option>
+        <option value="today">Today</option>
+        <option value="this-week">This week</option>
+        <option value="last-week">Last week</option>
+        <option value="this-month">This month</option>
+        <option value="last-month">Last month</option>
+        <option value="this-year">This year</option>
+        <option value="custom">Custom range&hellip;</option>
+      </select>
+      <div id="custom-date-range" class="date-range-inputs" hidden>
+        <input type="date" id="date-from">
+        <span>to</span>
+        <input type="date" id="date-to">
+      </div>
+    </div>
+  </div>
+
+  <div id="kanban-board" class="kanban-board"></div>
+</main>
+
+<script src="filters.js"></script>
+<script src="kanban.js"></script>
+</body>
+</html>

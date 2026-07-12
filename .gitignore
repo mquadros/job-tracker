@@ -1,0 +1,11 @@
+node_modules/
+data/
+.env
+.idea/
+.vscode/
+*.log
+.DS_Store
+
+# Personal Claude Code context/config — not part of the public project
+CLAUDE.md
+.claude/settings.local.json

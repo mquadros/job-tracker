@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script>(function(){var t=localStorage.getItem('theme');if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Tracker — Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h1 class="login-title">Job Tracker</h1>
+    <p class="login-sub">Sign in to your account</p>
+    <form id="login-form">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" type="text" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="error-msg" hidden></div>
+      <button type="submit" class="btn-primary full-width">Sign in</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = document.getElementById('login-error');
+      err.hidden = true;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sessionStorage.setItem('user', JSON.stringify(data));
+        window.location.href = '/';
+      } else {
+        const data = await res.json();
+        err.textContent = data.error || 'Login failed';
+        err.hidden = false;
+      }
+    });
+  </script>
+</body>
+</html>
