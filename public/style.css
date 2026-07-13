@@ -76,7 +76,13 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 
 /* ---- Main layout ---- */
 .main-wrap { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
-.kanban-wrap { max-width: 100%; padding-left: 1.5rem; padding-right: 1.5rem; }
+/* Capped to roughly the board's natural full width (5 columns * 270px + 4 gaps * 12px = 1398px,
+   plus this rule's own padding since box-sizing is border-box) rather than 100%, so the search
+   bar and filters above don't stretch far wider than the board that .kanban-board centers below
+   them, same misalignment the dashboard had before .dashboard-wrap. Still comfortably wider than
+   the board's exact content width, and overflow-x: auto on .kanban-board still kicks in on
+   narrower screens same as before. */
+.kanban-wrap { max-width: 1450px; padding-left: 1.5rem; padding-right: 1.5rem; }
 /* Dashboard-only: caps the whole column (search bar, filters, cards), not just the card list.
    Capping only #cards-container earlier left the search bar spanning the full 1180px while the
    cards sat narrower below it, which looked inconsistent, so the whole page now matches. */
