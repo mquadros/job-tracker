@@ -4,6 +4,11 @@ A self-hosted job application tracker. Track companies, roles, fit, pipeline sta
 resumes, and notes, with a dashboard, an insights/analytics page, and a Kanban board.
 Built with Node.js, Express, SQLite, and vanilla JS (no frontend framework, no build
 step). Docker-ready for any host, including TrueNAS/Portainer.
+<img width="2110" height="1636" alt="image" src="https://github.com/user-attachments/assets/edc569ac-cce8-4c86-9faa-4d03ac3dced4" />
+
+<img width="2116" height="1819" alt="image" src="https://github.com/user-attachments/assets/89dfb490-78c0-4c79-ab21-b2d74434d6d7" />
+
+<img width="2113" height="1723" alt="image" src="https://github.com/user-attachments/assets/c2e6294f-de58-471c-b485-6561986bda7f" />
 
 ---
 
