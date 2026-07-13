@@ -136,6 +136,25 @@ const ALLOWED_MIME = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true
 };
 
+// multer's fileFilter only sees the client-asserted Content-Type, which is trivial to spoof —
+// e.g. uploading an .exe with Content-Type: application/pdf would sail through. This checks
+// the actual file signature (magic bytes) on disk after upload, so what we accept matches what
+// the file actually is. DOCX and legacy DOC share different container formats (DOCX is a zip,
+// DOC is an OLE compound file) so both get their own signature.
+const FILE_SIGNATURES = [
+  Buffer.from([0x25, 0x50, 0x44, 0x46]),       // %PDF
+  Buffer.from([0xD0, 0xCF, 0x11, 0xE0]),       // legacy .doc (OLE compound file)
+  Buffer.from([0x50, 0x4B, 0x03, 0x04])        // .docx (zip container)
+];
+
+function hasValidFileSignature(filePath) {
+  const fd = fs.openSync(filePath, 'r');
+  const header = Buffer.alloc(4);
+  fs.readSync(fd, header, 0, 4, 0);
+  fs.closeSync(fd);
+  return FILE_SIGNATURES.some(sig => header.subarray(0, sig.length).equals(sig));
+}
+
 function storedFilePath(userId, jobId, type) {
   return path.join(db.UPLOADS_DIR, `${userId}_${jobId}_${type}`);
 }
@@ -169,6 +188,11 @@ router.post('/:id/files/:type', loadOwnedJob, validateFileType, (req, res) => {
   upload.single('file')(req, res, (uploadErr) => {
     if (uploadErr) return res.status(400).json({ error: uploadErr.message });
     if (!req.file) return res.status(400).json({ error: 'No file provided' });
+
+    if (!hasValidFileSignature(req.file.path)) {
+      fs.rmSync(req.file.path, { force: true });
+      return res.status(400).json({ error: 'File content does not match a supported PDF/DOC/DOCX format' });
+    }
 
     const originalName = req.file.originalname.slice(0, 255);
     if (req.params.type === 'resume') {

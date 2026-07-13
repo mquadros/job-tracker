@@ -8,8 +8,17 @@
   --text-muted: #71717a;
   --primary: #18181b;
   --primary-fg: #ffffff;
+  /* Accent ties buttons/active-states/chart bars into one consistent brand color instead of
+     flat black — pulled from the same blue already used across fit/location/stage badges so
+     it reads as part of the existing palette, not a bolted-on new color. */
+  --accent: #3B5FE0;
+  --accent-hover: #3151C7;
+  --accent-fg: #ffffff;
+  --accent-soft: #EEF1FE;
   --radius: 8px;
+  --radius-lg: 14px;
   --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-hover: 0 8px 20px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
 }
 [data-theme="dark"] {
   --bg: #16161a;
@@ -19,23 +28,30 @@
   --text-muted: #9a9aa2;
   --primary: #f2f2f3;
   --primary-fg: #16161a;
+  --accent: #6C8CF5;
+  --accent-hover: #82A0FF;
+  --accent-fg: #0b1220;
+  --accent-soft: #1c2440;
   --shadow: 0 1px 3px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.5);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.4);
 }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; min-height: 100vh; }
 
 /* ---- Buttons ---- */
-button { cursor: pointer; font-family: inherit; font-size: 13px; border: none; border-radius: var(--radius); padding: 6px 14px; transition: opacity .15s; }
-button:hover { opacity: .8; }
-.btn-primary { background: var(--primary); color: var(--primary-fg); font-weight: 500; padding: 8px 18px; }
+button { cursor: pointer; font-family: inherit; font-size: 13px; border: none; border-radius: var(--radius); padding: 6px 14px; transition: background-color .15s, color .15s, border-color .15s, box-shadow .15s, transform .1s; }
+button:hover { opacity: .85; }
+.btn-primary { background: var(--accent); color: var(--accent-fg); font-weight: 500; padding: 8px 18px; }
+.btn-primary:hover { background: var(--accent-hover); opacity: 1; }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 12px; }
+.btn-ghost:hover { background: var(--bg); opacity: 1; }
 .full-width { width: 100%; }
 .btn-icon { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
 .btn-danger { color: #dc2626; }
 .btn-danger-sm { background: transparent; border: 1px solid #fca5a5; color: #dc2626; padding: 3px 8px; font-size: 12px; border-radius: 6px; }
 
 /* ---- Inputs ---- */
-input, select, textarea { font-family: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; width: 100%; background: var(--surface); color: var(--text); outline: none; }
-input:focus, select:focus, textarea:focus { border-color: #a1a1aa; }
+input, select, textarea { font-family: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; width: 100%; background: var(--surface); color: var(--text); outline: none; transition: border-color .15s, box-shadow .15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 textarea { resize: vertical; }
 label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: block; }
 .field { display: flex; flex-direction: column; gap: 4px; }
@@ -59,7 +75,7 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .file-current a { color: var(--text); }
 
 /* ---- Main layout ---- */
-.main-wrap { max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.main-wrap { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
 .kanban-wrap { max-width: 100%; padding-left: 1.5rem; padding-right: 1.5rem; }
 
 /* ---- Kanban board ---- */
@@ -69,7 +85,8 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .kanban-count { background: var(--bg); color: var(--text-muted); border-radius: 10px; padding: 1px 9px; font-size: 11px; font-weight: 600; }
 .kanban-column-body { padding: .65rem; overflow-y: auto; flex: 1; min-height: 100px; transition: background-color .12s; }
 .kanban-column-body.drag-over { background: var(--bg); }
-.kanban-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: .6rem .7rem; margin-bottom: 8px; cursor: grab; }
+.kanban-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: .6rem .7rem; margin-bottom: 8px; cursor: grab; transition: box-shadow .15s, transform .15s; }
+.kanban-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .kanban-card:active { cursor: grabbing; }
 .kanban-card.dragging { opacity: .35; }
 .kanban-card-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
@@ -77,10 +94,10 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .kanban-card-tags { display: flex; gap: 4px; flex-wrap: wrap; }
 
 /* ---- Stats ---- */
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
-.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; box-shadow: var(--shadow); }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--stat-accent, var(--accent)); border-radius: var(--radius); padding: .85rem 1rem; box-shadow: var(--shadow); }
 .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.stat-val { font-size: 24px; font-weight: 600; }
+.stat-val { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
 
 /* ---- Search ---- */
 .search-row { margin-bottom: .75rem; }
@@ -90,8 +107,10 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .filters-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
 .filters-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
-.filter-btn { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); }
-.filter-btn.active { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.filter-btn { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); transition: background-color .15s, color .15s, border-color .15s; }
+.filter-btn:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+.filter-btn.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.filter-btn.active:hover { color: var(--accent-fg); }
 
 /* ---- Applied date filter ---- */
 .date-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -102,9 +121,13 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .date-range-inputs span { font-size: 12px; color: var(--text-muted); }
 
 /* ---- Job cards ---- */
-.job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 10px; box-shadow: var(--shadow); }
+/* auto-fill so a wide viewport naturally settles into 2-3 columns instead of one long
+   center-aligned column with empty rails on either side — this is the main space-usage fix. */
+#cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; align-items: start; }
+.job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; box-shadow: var(--shadow); transition: box-shadow .15s, transform .15s; }
+.job-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .job-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.job-title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.job-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.01em; }
 .job-company { font-size: 13px; color: var(--text-muted); }
 .job-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .job-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
@@ -118,8 +141,10 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .status-select { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; background: var(--surface); width: auto; }
 
 /* ---- Insights / charts ---- */
-.chart-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+.chart-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+.chart-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
 .chart-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+.chart-header .chart-title { margin-bottom: 0; }
 .chart-container { overflow-x: auto; }
 .chart-container svg { display: block; }
 .chart-empty { color: var(--text-muted); font-size: 13px; padding: 2rem 0; text-align: center; }
@@ -152,4 +177,5 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
   .stats-row { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .job-card-header { flex-direction: column; gap: 8px; }
+  #cards-container { grid-template-columns: 1fr; }
 }

@@ -6,9 +6,32 @@ function renderAll() {
   currentVisible = filterJobs(allJobs, filterState);
   document.getElementById('filter-summary').textContent =
     `Showing: ${describeFilterState(filterState)} (${currentVisible.length} of ${allJobs.length} applications)`;
+  renderStats(currentVisible);
   renderDailyChart(currentVisible);
   renderFunnelChart(currentVisible);
   renderDonutChart(currentVisible);
+  renderReferralImpactChart(currentVisible);
+}
+
+// ---- Stats (moved here from the dashboard — this is the analytics home now) ----
+// Response rate = share of *applied* jobs that got some kind of response, i.e. moved past
+// "Applied" into a real conversation (Recruiter screen or later) or straight to a recorded
+// outcome (an instant rejection still counts as a response, just not an advancement).
+function renderStats(visible) {
+  const total = visible.length;
+  const applied = visible.filter(j => j.stage !== 'Not applied');
+  const active = visible.filter(j => !j.outcome && ['Recruiter screen','Interview','Final round'].includes(j.stage)).length;
+  const strong = visible.filter(j => j.fit === 'strong').length;
+  const responded = applied.filter(j => j.outcome || j.stage !== 'Applied').length;
+  const responseRate = applied.length ? Math.round((responded / applied.length) * 100) : null;
+
+  document.getElementById('stats-row').innerHTML = [
+    ['Total roles', total, '--accent'],
+    ['Applied', applied.length, '#185FA5'],
+    ['Active', active, '#0F6E56'],
+    ['Strong fit', strong, '#3B6D11'],
+    ['Response rate', responseRate === null ? '—' : responseRate + '%', '#854F0B']
+  ].map(([l, v, accent]) => `<div class="stat-card" style="--stat-accent:${accent.startsWith('--') ? `var(${accent})` : accent}"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join('');
 }
 
 // Seeded from the dashboard's URL params on first load, then live-editable via the same
@@ -42,14 +65,40 @@ let filterState = { filterSelections: new Set(), dateFilter: { preset: 'all', fr
       renderDonutChart(currentVisible);
     };
   });
+
+  document.querySelectorAll('#granularity-row button').forEach(btn => {
+    btn.onclick = () => {
+      dailyGranularity = btn.dataset.granularity;
+      updateGranularityButtons();
+      renderDailyChart(currentVisible);
+    };
+  });
 })();
 
-// ---- Applications per day ----
+// ---- Applications over time (day / week / month, user-selectable) ----
+// null = no explicit user choice yet: pick a sensible default from the data's date span on
+// first render, then stick with whatever the user picks via the buttons from then on, even as
+// filters change the underlying data.
+let dailyGranularity = null;
+
+function updateGranularityButtons() {
+  document.querySelectorAll('#granularity-row button').forEach(b => {
+    b.classList.toggle('active', b.dataset.granularity === dailyGranularity);
+  });
+}
+
+function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; }
+function monthLabel(key) {
+  const d = parseLocalDate(key);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+}
+
 function renderDailyChart(jobs) {
   const container = document.getElementById('daily-chart');
   const dated = jobs.filter(j => j.applied_date);
   if (!dated.length) {
     container.innerHTML = '<p class="chart-empty">No applications with an applied date in this filter.</p>';
+    updateGranularityButtons();
     return;
   }
 
@@ -57,23 +106,31 @@ function renderDailyChart(jobs) {
   const minDate = parseLocalDate(dateStrs[0]);
   const maxDate = parseLocalDate(dateStrs[dateStrs.length - 1]);
   const spanDays = Math.round((maxDate - minDate) / 86400000) + 1;
-  const bucketByWeek = spanDays > 60;
+
+  if (!dailyGranularity) dailyGranularity = spanDays > 60 ? 'week' : 'day';
+  updateGranularityButtons();
 
   const counts = new Map();
   dated.forEach(j => {
+    const d = parseLocalDate(j.applied_date);
     let key = j.applied_date;
-    if (bucketByWeek) {
-      const d = parseLocalDate(j.applied_date);
+    if (dailyGranularity === 'week') {
       const dow = (d.getDay() + 6) % 7;
       d.setDate(d.getDate() - dow); // Monday of that week
       key = fmtLocalDate(d);
+    } else if (dailyGranularity === 'month') {
+      key = monthKey(d);
     }
     counts.set(key, (counts.get(key) || 0) + 1);
   });
 
   // Fill gaps for a continuous axis so quiet stretches are visible, not hidden.
   const allKeys = [];
-  if (bucketByWeek) {
+  if (dailyGranularity === 'month') {
+    const cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    while (cursor <= end) { allKeys.push(monthKey(cursor)); cursor.setMonth(cursor.getMonth() + 1); }
+  } else if (dailyGranularity === 'week') {
     const cursor = new Date(minDate);
     cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
     const end = new Date(maxDate);
@@ -90,22 +147,27 @@ function renderDailyChart(jobs) {
   const w = data.length * (barW + gap) + gap;
   const h = chartH + labelPad + topPad;
   const showEveryNth = Math.max(1, Math.ceil(data.length / 20));
+  const fmtLabel = dailyGranularity === 'month' ? monthLabel : (k => k);
 
   let bars = '';
   data.forEach((d, i) => {
     const x = gap + i * (barW + gap);
     const barH = (d.count / maxCount) * chartH;
     const y = topPad + chartH - barH;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--primary)" opacity="${d.count ? 0.85 : 0.15}"><title>${esc(d.key)}: ${d.count}</title></rect>`;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--accent)" opacity="${d.count ? 0.85 : 0.15}"><title>${esc(fmtLabel(d.key))}: ${d.count}</title></rect>`;
     if (d.count) bars += `<text x="${x + barW/2}" y="${y - 4}" font-size="10" text-anchor="middle" style="fill:var(--text-muted)">${d.count}</text>`;
     if (i % showEveryNth === 0) {
       const labelY = topPad + chartH + 14;
-      bars += `<text x="${x + barW/2}" y="${labelY}" font-size="9" text-anchor="end" style="fill:var(--text-muted)" transform="rotate(-40 ${x+barW/2} ${labelY})">${esc(d.key)}</text>`;
+      bars += `<text x="${x + barW/2}" y="${labelY}" font-size="9" text-anchor="end" style="fill:var(--text-muted)" transform="rotate(-40 ${x+barW/2} ${labelY})">${esc(fmtLabel(d.key))}</text>`;
     }
   });
 
+  const note = dailyGranularity === 'week' ? 'Bucketed by week (week shown is the Monday it starts)'
+    : dailyGranularity === 'month' ? 'Bucketed by month'
+    : null;
+
   container.innerHTML = `
-    ${bucketByWeek ? '<p class="chart-note">Bucketed by week — date range exceeds 60 days (week shown is the Monday it starts)</p>' : ''}
+    ${note ? `<p class="chart-note">${note}</p>` : ''}
     <svg viewBox="0 0 ${w} ${h}" width="${Math.min(w, 900)}" height="${h}">${bars}</svg>`;
 }
 
@@ -344,4 +406,44 @@ function renderDonutChart(jobs) {
       </svg>
       <div style="min-width:200px;flex:1;">${legend}</div>
     </div>`;
+}
+
+// ---- Referral & recruiter contact impact ----
+// "Responded" uses the same definition as the Response rate stat card: moved past Applied, or
+// already has a recorded outcome (a fast rejection still counts — it's a response, just not an
+// advancement). Only counts jobs that were actually applied to, since "Not applied" rows have
+// no funnel outcome yet to compare.
+function renderReferralImpactChart(jobs) {
+  const container = document.getElementById('referral-chart');
+  const applied = jobs.filter(j => j.stage !== 'Not applied');
+  if (!applied.length) {
+    container.innerHTML = '<p class="chart-empty">No applications in this filter.</p>';
+    return;
+  }
+
+  const groups = [
+    { label: 'Referral or recruiter contact', pool: applied.filter(j => j.has_referral || j.recruiter_contact), color: '#7C3AED' },
+    { label: 'Neither', pool: applied.filter(j => !j.has_referral && !j.recruiter_contact), color: '#8B96A8' }
+  ];
+
+  const rows = groups.map(g => {
+    const n = g.pool.length;
+    const responded = g.pool.filter(j => j.outcome || j.stage !== 'Applied').length;
+    const rate = n ? Math.round((responded / n) * 100) : null;
+    return Object.assign({}, g, { n, rate });
+  });
+
+  container.innerHTML = rows.map(r => `
+    <div style="margin-bottom:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(r.label)}</span>
+        <span style="font-size:12px;color:var(--text-muted);">${r.n} application${r.n === 1 ? '' : 's'}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:6px;height:24px;overflow:hidden;">
+        <div style="background:${r.color};height:100%;width:${r.rate === null ? 0 : r.rate}%;border-radius:6px;transition:width .3s;"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+        ${r.rate === null ? 'No applications in this group yet' : `${r.rate}% got a response`}
+      </div>
+    </div>`).join('');
 }

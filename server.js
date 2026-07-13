@@ -6,6 +6,21 @@ const path = require('path');
 
 const app = express();
 
+// Off by default — only enable behind a reverse proxy (Nginx Proxy Manager, Caddy, etc.), and
+// only if that proxy is the sole way to reach this app. With this on, Express trusts the
+// X-Forwarded-For header for req.ip, which the login rate limiter keys on; trusting it from an
+// untrusted network path would let a client spoof its way around the rate limit.
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));

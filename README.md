@@ -116,9 +116,11 @@ below); without a `.env` file it falls back to `ADMIN_USER=admin`,
 |--------------|--------------|------------------------------------------|
 | `ADMIN_USER` | `admin`      | Username for the seeded admin account    |
 | `ADMIN_PASS` | `changeme`   | Password for the seeded admin account    |
-| `JWT_SECRET` | *(insecure default)* | Secret for signing JWTs — always set this |
+| `JWT_SECRET` | *(none — required)* | Secret for signing JWTs. **The app refuses to start without this set** — generate one with `openssl rand -hex 32` |
 | `PORT`       | `3000`       | Port the server listens on               |
 | `DB_PATH`    | `/app/data/tracker.db` (Docker) / `./data/tracker.db` (local) | Path to SQLite database file |
+| `TRUST_PROXY` | `false` (unset) | Set to `true` only if this app is exclusively reachable through a reverse proxy — enables Express's `trust proxy`, which the login rate limiter relies on to see real client IPs. Enabling this without an actual proxy in front lets clients spoof their IP via `X-Forwarded-For` and bypass rate limiting. |
+| `COOKIE_SECURE` | `false` (unset) | Set to `true` once the app is served over HTTPS (e.g. behind the reverse proxy above) — marks the session cookie `Secure`, so browsers stop sending it over plain HTTP. Leave unset for a plain-HTTP LAN deployment, or the cookie won't be sent at all and login will silently fail. |
 
 ---
 

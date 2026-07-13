@@ -61,21 +61,6 @@ async function loadJobs() {
 }
 
 // ---- Render ----
-// Stats reflect the currently filtered set, not every job — so they move in lockstep with
-// whatever's actually visible in the card list below.
-function renderStats(visible) {
-  const total = visible.length;
-  const applied = visible.filter(j => j.stage !== 'Not applied').length;
-  const active = visible.filter(j => !j.outcome && ['Recruiter screen','Interview','Final round'].includes(j.stage)).length;
-  const strong = visible.filter(j => j.fit === 'strong').length;
-  document.getElementById('stats-row').innerHTML = [
-    ['Total roles', total],
-    ['Applied', applied],
-    ['Active', active],
-    ['Strong fit', strong]
-  ].map(([l,v]) => `<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join('');
-}
-
 function renderCards(visible) {
   const container = document.getElementById('cards-container');
   if (!visible.length) {
@@ -136,7 +121,6 @@ function renderCards(visible) {
 
 function render() {
   const visible = filterJobs(jobs, filterState);
-  renderStats(visible);
   renderCards(visible);
 }
 
