@@ -194,7 +194,9 @@ function renderFunnelChart(jobs) {
   // at a stage with no outcome recorded yet (still active, no verdict). Treated as just another
   // exit-style branch here so it renders exactly like Offer/Rejected/Withdrawn, one per stage
   // it occurs at.
-  const OUTCOME_KEYS = ['Offer', 'Rejected', 'Withdrawn', 'In Progress'];
+  // Stacking order top-to-bottom (below Offer, which always caps the spine — see the geometry
+  // comment further down): In Progress, then Withdrawn, then Rejected at the very bottom.
+  const OUTCOME_KEYS = ['Offer', 'In Progress', 'Withdrawn', 'Rejected'];
   const stageIdx = s => STAGE_OPTIONS.indexOf(s);
   const numStages = STAGE_OPTIONS.length;
   const reached = STAGE_OPTIONS.map((s, i) => jobs.filter(j => stageIdx(j.stage) >= i).length);
@@ -270,7 +272,12 @@ function renderFunnelChart(jobs) {
     OUTCOME_KEYS.forEach(o => {
       const on = byId['out' + i + o];
       if (!on) return;
-      on.y0 = cont ? exitTop : src.y0;
+      // Only Offer gets the spine-level treatment when there's no continuing stage — every
+      // other outcome still drops into the stacked exit band below, same as at any other
+      // stage. Previously this pinned *all* outcomes to src.y0 whenever `cont` was falsy,
+      // which only happens at the last stage — collapsing Offer/Withdrawn/Rejected/In Progress
+      // on top of each other there instead of fanning them out.
+      on.y0 = (!cont && o === 'Offer') ? src.y0 : exitTop;
       exitTop += on.h + nodePad;
       srcCursor += on.h;
     });
