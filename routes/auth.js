@@ -4,12 +4,17 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
-const { requireAdmin, requireAuth, hashApiToken, SECRET } = require('../middleware/auth');
+const { requireAdmin, requireAuth, hashApiToken, SECRET, JWT_ALGORITHM } = require('../middleware/auth');
 
 const router = express.Router();
+const MIN_PASSWORD_LENGTH = 8;
 const COOKIE_OPTS = {
   httpOnly: true,
   sameSite: 'lax',
+  // Off by default so plain-HTTP LAN deployments (the common case for this app) still work —
+  // browsers silently drop `Secure` cookies over non-HTTPS. Set COOKIE_SECURE=true once the
+  // app is actually served over HTTPS (e.g. behind a reverse proxy).
+  secure: process.env.COOKIE_SECURE === 'true',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
 
@@ -50,7 +55,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
 
-  const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET, { expiresIn: '7d', algorithm: JWT_ALGORITHM });
   res.cookie('token', token, COOKIE_OPTS);
   res.json({ username: user.username, role: user.role });
 });
@@ -65,6 +70,9 @@ router.post('/logout', (req, res) => {
 router.post('/users', requireAdmin, async (req, res) => {
   const { username, password, role = 'user' } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+  }
   const existing = stmts.getUserIdByUsername.get(username);
   if (existing) return res.status(409).json({ error: 'Username already exists' });
   const hash = await bcrypt.hash(password, 12);
@@ -95,6 +103,9 @@ router.get('/me', requireAuth, (req, res) => {
 router.post('/change-password', requireAuth, async (req, res) => {
   const { current, next: newPass } = req.body;
   if (!current || !newPass) return res.status(400).json({ error: 'Missing fields' });
+  if (newPass.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+  }
   const user = stmts.getUserById.get(req.user.id);
   const valid = await bcrypt.compare(current, user.password);
   if (!valid) return res.status(401).json({ error: 'Current password incorrect' });

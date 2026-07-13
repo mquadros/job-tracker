@@ -1,3 +1,39 @@
+// ---- Chart hover tooltip ----
+// A custom tooltip instead of native SVG <title> elements, which show on hover but only after
+// the browser's built-in ~1 second delay. Shared across all three SVG charts: each hoverable
+// shape carries its text in a data-tooltip attribute (rather than passing it through the inline
+// event handler, which would need fragile nested quoting) and calls these three global
+// functions on mouseenter/mousemove/mouseleave.
+let chartTooltipEl = null;
+function getChartTooltipEl() {
+  if (!chartTooltipEl) {
+    chartTooltipEl = document.createElement('div');
+    chartTooltipEl.className = 'chart-tooltip';
+    document.body.appendChild(chartTooltipEl);
+  }
+  return chartTooltipEl;
+}
+window.showChartTooltip = function(evt) {
+  const tip = getChartTooltipEl();
+  tip.textContent = evt.currentTarget.getAttribute('data-tooltip') || '';
+  tip.style.display = 'block';
+  window.positionChartTooltip(evt);
+};
+window.positionChartTooltip = function(evt) {
+  const tip = getChartTooltipEl();
+  if (tip.style.display === 'none') return;
+  const pad = 14;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  const rect = tip.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth) x = evt.clientX - rect.width - pad;
+  if (y + rect.height > window.innerHeight) y = evt.clientY - rect.height - pad;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+};
+window.hideChartTooltip = function() {
+  getChartTooltipEl().style.display = 'none';
+};
+
 // ---- Boot ----
 let allJobs = [];
 let currentVisible = [];
@@ -6,9 +42,32 @@ function renderAll() {
   currentVisible = filterJobs(allJobs, filterState);
   document.getElementById('filter-summary').textContent =
     `Showing: ${describeFilterState(filterState)} (${currentVisible.length} of ${allJobs.length} applications)`;
+  renderStats(currentVisible);
   renderDailyChart(currentVisible);
   renderFunnelChart(currentVisible);
   renderDonutChart(currentVisible);
+  renderReferralImpactChart(currentVisible);
+}
+
+// ---- Stats (moved here from the dashboard, this is the analytics home now) ----
+// Response rate = share of *applied* jobs that got some kind of response, i.e. moved past
+// "Applied" into a real conversation (Recruiter screen or later) or straight to a recorded
+// outcome (an instant rejection still counts as a response, just not an advancement).
+function renderStats(visible) {
+  const total = visible.length;
+  const applied = visible.filter(j => j.stage !== 'Not applied');
+  const active = visible.filter(j => !j.outcome && ['Recruiter screen','Interview','Final round'].includes(j.stage)).length;
+  const strong = visible.filter(j => j.fit === 'strong').length;
+  const responded = applied.filter(j => j.outcome || j.stage !== 'Applied').length;
+  const responseRate = applied.length ? Math.round((responded / applied.length) * 100) : null;
+
+  document.getElementById('stats-row').innerHTML = [
+    ['Total roles', total, '--accent'],
+    ['Applied', applied.length, '#185FA5'],
+    ['Active', active, '#0F6E56'],
+    ['Strong fit', strong, '#3B6D11'],
+    ['Response rate', responseRate === null ? 'N/A' : responseRate + '%', '#854F0B']
+  ].map(([l, v, accent]) => `<div class="stat-card" style="--stat-accent:${accent.startsWith('--') ? `var(${accent})` : accent}"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join('');
 }
 
 // Seeded from the dashboard's URL params on first load, then live-editable via the same
@@ -42,14 +101,40 @@ let filterState = { filterSelections: new Set(), dateFilter: { preset: 'all', fr
       renderDonutChart(currentVisible);
     };
   });
+
+  document.querySelectorAll('#granularity-row button').forEach(btn => {
+    btn.onclick = () => {
+      dailyGranularity = btn.dataset.granularity;
+      updateGranularityButtons();
+      renderDailyChart(currentVisible);
+    };
+  });
 })();
 
-// ---- Applications per day ----
+// ---- Applications over time (day / week / month, user-selectable) ----
+// null = no explicit user choice yet: pick a sensible default from the data's date span on
+// first render, then stick with whatever the user picks via the buttons from then on, even as
+// filters change the underlying data.
+let dailyGranularity = null;
+
+function updateGranularityButtons() {
+  document.querySelectorAll('#granularity-row button').forEach(b => {
+    b.classList.toggle('active', b.dataset.granularity === dailyGranularity);
+  });
+}
+
+function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; }
+function monthLabel(key) {
+  const d = parseLocalDate(key);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+}
+
 function renderDailyChart(jobs) {
   const container = document.getElementById('daily-chart');
   const dated = jobs.filter(j => j.applied_date);
   if (!dated.length) {
     container.innerHTML = '<p class="chart-empty">No applications with an applied date in this filter.</p>';
+    updateGranularityButtons();
     return;
   }
 
@@ -57,23 +142,34 @@ function renderDailyChart(jobs) {
   const minDate = parseLocalDate(dateStrs[0]);
   const maxDate = parseLocalDate(dateStrs[dateStrs.length - 1]);
   const spanDays = Math.round((maxDate - minDate) / 86400000) + 1;
-  const bucketByWeek = spanDays > 60;
 
-  const counts = new Map();
+  if (!dailyGranularity) dailyGranularity = spanDays > 60 ? 'week' : 'day';
+  updateGranularityButtons();
+
+  // Group full job objects per bucket, not just a count, so the tooltip can list which
+  // companies/titles landed in that day/week/month.
+  const bucketJobs = new Map();
   dated.forEach(j => {
+    const d = parseLocalDate(j.applied_date);
     let key = j.applied_date;
-    if (bucketByWeek) {
-      const d = parseLocalDate(j.applied_date);
+    if (dailyGranularity === 'week') {
       const dow = (d.getDay() + 6) % 7;
       d.setDate(d.getDate() - dow); // Monday of that week
       key = fmtLocalDate(d);
+    } else if (dailyGranularity === 'month') {
+      key = monthKey(d);
     }
-    counts.set(key, (counts.get(key) || 0) + 1);
+    if (!bucketJobs.has(key)) bucketJobs.set(key, []);
+    bucketJobs.get(key).push(j);
   });
 
   // Fill gaps for a continuous axis so quiet stretches are visible, not hidden.
   const allKeys = [];
-  if (bucketByWeek) {
+  if (dailyGranularity === 'month') {
+    const cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    while (cursor <= end) { allKeys.push(monthKey(cursor)); cursor.setMonth(cursor.getMonth() + 1); }
+  } else if (dailyGranularity === 'week') {
     const cursor = new Date(minDate);
     cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
     const end = new Date(maxDate);
@@ -83,36 +179,60 @@ function renderDailyChart(jobs) {
     while (cursor <= maxDate) { allKeys.push(fmtLocalDate(cursor)); cursor.setDate(cursor.getDate() + 1); }
   }
 
-  const data = allKeys.map(k => ({ key: k, count: counts.get(k) || 0 }));
-  const maxCount = Math.max(...data.map(d => d.count), 1);
+  const data = allKeys.map(k => ({ key: k, jobs: bucketJobs.get(k) || [] }));
+  const maxCount = Math.max(...data.map(d => d.jobs.length), 1);
 
+  // Fixed bar width regardless of how many bars there are, that's the actual fix for "hard to
+  // read with lots of dates": rendering the SVG at its natural width (see the svg tag below,
+  // no more capping width to 900px against a wider viewBox) instead of letting the browser
+  // scale the whole drawing down to fit, which is what was squishing every bar illegibly thin.
+  // .chart-container's overflow-x: auto (already in style.css) handles the rest via scrolling.
   const barW = 20, gap = 6, chartH = 200, labelPad = 44, topPad = 20;
   const w = data.length * (barW + gap) + gap;
   const h = chartH + labelPad + topPad;
   const showEveryNth = Math.max(1, Math.ceil(data.length / 20));
+  const fmtLabel = dailyGranularity === 'month' ? monthLabel : (k => k);
+
+  // Tooltip lists which companies/titles landed in that bucket, capped so a very dense
+  // month/week bucket doesn't produce an unreadably huge popup.
+  const MAX_TOOLTIP_JOBS = 12;
+  function tooltipFor(d) {
+    const header = `${fmtLabel(d.key)}: ${d.jobs.length} application${d.jobs.length === 1 ? '' : 's'}`;
+    if (!d.jobs.length) return header;
+    const lines = d.jobs.slice(0, MAX_TOOLTIP_JOBS).map(j => `${j.company}: ${j.title}`);
+    if (d.jobs.length > MAX_TOOLTIP_JOBS) lines.push(`+${d.jobs.length - MAX_TOOLTIP_JOBS} more`);
+    return [header, ...lines].join('\n');
+  }
+
+  const hoverAttrs = 'onmouseenter="showChartTooltip(event)" onmousemove="positionChartTooltip(event)" onmouseleave="hideChartTooltip()"';
 
   let bars = '';
   data.forEach((d, i) => {
     const x = gap + i * (barW + gap);
-    const barH = (d.count / maxCount) * chartH;
+    const count = d.jobs.length;
+    const barH = (count / maxCount) * chartH;
     const y = topPad + chartH - barH;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--primary)" opacity="${d.count ? 0.85 : 0.15}"><title>${esc(d.key)}: ${d.count}</title></rect>`;
-    if (d.count) bars += `<text x="${x + barW/2}" y="${y - 4}" font-size="10" text-anchor="middle" style="fill:var(--text-muted)">${d.count}</text>`;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--accent);cursor:pointer" opacity="${count ? 0.85 : 0.15}" data-tooltip="${esc(tooltipFor(d))}" ${hoverAttrs}></rect>`;
+    if (count) bars += `<text x="${x + barW/2}" y="${y - 4}" font-size="10" text-anchor="middle" style="fill:var(--text-muted)">${count}</text>`;
     if (i % showEveryNth === 0) {
       const labelY = topPad + chartH + 14;
-      bars += `<text x="${x + barW/2}" y="${labelY}" font-size="9" text-anchor="end" style="fill:var(--text-muted)" transform="rotate(-40 ${x+barW/2} ${labelY})">${esc(d.key)}</text>`;
+      bars += `<text x="${x + barW/2}" y="${labelY}" font-size="9" text-anchor="end" style="fill:var(--text-muted)" transform="rotate(-40 ${x+barW/2} ${labelY})">${esc(fmtLabel(d.key))}</text>`;
     }
   });
 
+  const note = dailyGranularity === 'week' ? 'Bucketed by week (week shown is the Monday it starts)'
+    : dailyGranularity === 'month' ? 'Bucketed by month'
+    : null;
+
   container.innerHTML = `
-    ${bucketByWeek ? '<p class="chart-note">Bucketed by week — date range exceeds 60 days (week shown is the Monday it starts)</p>' : ''}
-    <svg viewBox="0 0 ${w} ${h}" width="${Math.min(w, 900)}" height="${h}">${bars}</svg>`;
+    ${note ? `<p class="chart-note">${note}</p>` : ''}
+    <svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
 }
 
 // ---- Pipeline funnel (Sankey) ----
 // Semantics: each job's *current* stage implies it passed through every earlier stage (stage
 // is a linear progression), so the continue flow k->k+1 = jobs whose current stage index is
-// >= k+1. A job's outcome exits into the column right after the stage it happened at — a
+// >= k+1. A job's outcome exits into the column right after the stage it happened at, so a
 // rejection after "Recruiter screen" lands one column short of a rejection after "Interview".
 // Node 0 is "Applications" (the grand total reached[0], not literally the Not-applied count).
 //
@@ -128,11 +248,13 @@ function renderFunnelChart(jobs) {
     return;
   }
 
-  // "In Progress" is a synthetic branch, not a real `job.outcome` value — it's whatever's left
+  // "In Progress" is a synthetic branch, not a real `job.outcome` value, it's whatever's left
   // at a stage with no outcome recorded yet (still active, no verdict). Treated as just another
   // exit-style branch here so it renders exactly like Offer/Rejected/Withdrawn, one per stage
   // it occurs at.
-  const OUTCOME_KEYS = ['Offer', 'Rejected', 'Withdrawn', 'In Progress'];
+  // Stacking order top-to-bottom (below Offer, which always caps the spine, see the geometry
+  // comment further down): In Progress, then Withdrawn, then Rejected at the very bottom.
+  const OUTCOME_KEYS = ['Offer', 'In Progress', 'Withdrawn', 'Rejected'];
   const stageIdx = s => STAGE_OPTIONS.indexOf(s);
   const numStages = STAGE_OPTIONS.length;
   const reached = STAGE_OPTIONS.map((s, i) => jobs.filter(j => stageIdx(j.stage) >= i).length);
@@ -183,7 +305,7 @@ function renderFunnelChart(jobs) {
   // The success chain leaves the TOP of each node, and each successive stage is lifted by
   // `riseStep`, so the spine climbs toward the top-right (culminating in the Offer node).
   // Outcome exits leave below the continue slice and are dropped by `exitDrop` into the lower
-  // band, so attrition fans downward — the read an exec audience expects: success up, failures
+  // band, so attrition fans downward: the read an exec audience expects, success up, failures
   // down. (A pure barycenter auto-layout let the majority "continue" flow sag downward; this
   // deterministic bias guarantees the intended direction regardless of where the volume sits.)
   const nodeW = 13, colGap = 165, nodePad = 34, leftMargin = 104, bottomPad = 44;
@@ -208,7 +330,12 @@ function renderFunnelChart(jobs) {
     OUTCOME_KEYS.forEach(o => {
       const on = byId['out' + i + o];
       if (!on) return;
-      on.y0 = cont ? exitTop : src.y0;
+      // Only Offer gets the spine-level treatment when there's no continuing stage. Every
+      // other outcome still drops into the stacked exit band below, same as at any other
+      // stage. Previously this pinned *all* outcomes to src.y0 whenever `cont` was falsy,
+      // which only happens at the last stage, collapsing Offer/Withdrawn/Rejected/In Progress
+      // on top of each other there instead of fanning them out.
+      on.y0 = (!cont && o === 'Offer') ? src.y0 : exitTop;
       exitTop += on.h + nodePad;
       srcCursor += on.h;
     });
@@ -232,6 +359,8 @@ function renderFunnelChart(jobs) {
   });
 
   // ---- render ----
+  const hoverAttrs = 'onmouseenter="showChartTooltip(event)" onmousemove="positionChartTooltip(event)" onmouseleave="hideChartTooltip()"';
+
   let defs = '', linkSvg = '';
   links.forEach((l, i) => {
     const gid = 'sankey-lg-' + i;
@@ -239,20 +368,22 @@ function renderFunnelChart(jobs) {
       `<stop offset="0" stop-color="${l.s.color}"/><stop offset="1" stop-color="${l.t.color}"/></linearGradient>`;
     const x0 = l.s.x1, x1 = l.t.x0, xm = (x0 + x1) / 2;
     const sy0 = l.sy0, sy1 = l.sy0 + l.w, ty0 = l.ty0, ty1 = l.ty0 + l.w;
-    linkSvg += `<path d="M ${x0},${sy0} C ${xm},${sy0} ${xm},${ty0} ${x1},${ty0} L ${x1},${ty1} C ${xm},${ty1} ${xm},${sy1} ${x0},${sy1} Z" fill="url(#${gid})" opacity="0.62"/>`;
+    const linkTip = `${l.s.label} → ${l.t.label}: ${l.value} application${l.value === 1 ? '' : 's'}`;
+    linkSvg += `<path d="M ${x0},${sy0} C ${xm},${sy0} ${xm},${ty0} ${x1},${ty0} L ${x1},${ty1} C ${xm},${ty1} ${xm},${sy1} ${x0},${sy1} Z" fill="url(#${gid})" opacity="0.62" style="cursor:pointer" data-tooltip="${esc(linkTip)}" ${hoverAttrs}/>`;
   });
 
   let nodeSvg = '';
   nodes.forEach(n => {
     const midY = cy(n);
-    nodeSvg += `<rect x="${n.x0}" y="${n.y0}" width="${nodeW}" height="${n.h}" rx="2.5" fill="${n.color}"/>`;
-    if (n.col === 0) { // leftmost — label to the left
+    const nodeTip = `${n.label}: ${n.value} application${n.value === 1 ? '' : 's'}`;
+    nodeSvg += `<rect x="${n.x0}" y="${n.y0}" width="${nodeW}" height="${n.h}" rx="2.5" fill="${n.color}" style="cursor:pointer" data-tooltip="${esc(nodeTip)}" ${hoverAttrs}/>`;
+    if (n.col === 0) { // leftmost, label to the left
       nodeSvg += `<text x="${n.x0 - 12}" y="${midY - 2}" font-size="15" font-weight="700" text-anchor="end" style="fill:var(--text)">${n.value}</text>`;
       nodeSvg += `<text x="${n.x0 - 12}" y="${midY + 14}" font-size="11" text-anchor="end" style="fill:var(--text-muted)">${esc(n.label)}</text>`;
-    } else if (!n.outLinks.length) { // terminal — label to the right
+    } else if (!n.outLinks.length) { // terminal, label to the right
       nodeSvg += `<text x="${n.x1 + 12}" y="${midY - 2}" font-size="15" font-weight="700" text-anchor="start" style="fill:var(--text)">${n.value}</text>`;
       nodeSvg += `<text x="${n.x1 + 12}" y="${midY + 14}" font-size="11" text-anchor="start" style="fill:var(--text-muted)">${esc(n.label)}</text>`;
-    } else { // mid-flow — label above
+    } else { // mid-flow, label above
       nodeSvg += `<text x="${n.x0 + nodeW / 2}" y="${n.y0 - 21}" font-size="15" font-weight="700" text-anchor="middle" style="fill:var(--text)">${n.value}</text>`;
       nodeSvg += `<text x="${n.x0 + nodeW / 2}" y="${n.y0 - 7}" font-size="11" text-anchor="middle" style="fill:var(--text-muted)">${esc(n.label)}</text>`;
     }
@@ -309,7 +440,7 @@ function renderDonutChart(jobs) {
   const total = jobs.length;
 
   // A count buried at 13px in muted gray is the classic "chart nobody can read from across
-  // the room" mistake — the percentage is the headline number here, so it gets top billing:
+  // the room" mistake. The percentage is the headline number here, so it gets top billing:
   // large, bold, and colored to match its slice (ties the legend row back to the donut
   // without needing to cross-reference a key). Count is demoted to a small caption under it.
   const size = 240, radius = 84, strokeW = 36, cx = size / 2, cy = size / 2;
@@ -323,8 +454,8 @@ function renderDonutChart(jobs) {
     const color = donutColorFor(donutDimension, key, idx);
     const label = donutLabelFor(donutDimension, key);
     segments += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${color}" stroke-width="${strokeW}" ` +
-      `stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-cursor}" transform="rotate(-90 ${cx} ${cy})">` +
-      `<title>${esc(label)}: ${count} (${pctLabel}%)</title></circle>`;
+      `stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-cursor}" transform="rotate(-90 ${cx} ${cy})" ` +
+      `style="cursor:pointer" data-tooltip="${esc(label)}: ${count} (${pctLabel}%)" onmouseenter="showChartTooltip(event)" onmousemove="positionChartTooltip(event)" onmouseleave="hideChartTooltip()"></circle>`;
     cursor += dash;
     legend += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">` +
       `<span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;"></span>` +
@@ -344,4 +475,44 @@ function renderDonutChart(jobs) {
       </svg>
       <div style="min-width:200px;flex:1;">${legend}</div>
     </div>`;
+}
+
+// ---- Referral & recruiter contact impact ----
+// "Responded" uses the same definition as the Response rate stat card: moved past Applied, or
+// already has a recorded outcome (a fast rejection still counts, it's a response, just not an
+// advancement). Only counts jobs that were actually applied to, since "Not applied" rows have
+// no funnel outcome yet to compare.
+function renderReferralImpactChart(jobs) {
+  const container = document.getElementById('referral-chart');
+  const applied = jobs.filter(j => j.stage !== 'Not applied');
+  if (!applied.length) {
+    container.innerHTML = '<p class="chart-empty">No applications in this filter.</p>';
+    return;
+  }
+
+  const groups = [
+    { label: 'Referral or recruiter contact', pool: applied.filter(j => j.has_referral || j.recruiter_contact), color: '#7C3AED' },
+    { label: 'Neither', pool: applied.filter(j => !j.has_referral && !j.recruiter_contact), color: '#8B96A8' }
+  ];
+
+  const rows = groups.map(g => {
+    const n = g.pool.length;
+    const responded = g.pool.filter(j => j.outcome || j.stage !== 'Applied').length;
+    const rate = n ? Math.round((responded / n) * 100) : null;
+    return Object.assign({}, g, { n, rate });
+  });
+
+  container.innerHTML = rows.map(r => `
+    <div style="margin-bottom:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(r.label)}</span>
+        <span style="font-size:12px;color:var(--text-muted);">${r.n} application${r.n === 1 ? '' : 's'}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:6px;height:24px;overflow:hidden;">
+        <div style="background:${r.color};height:100%;width:${r.rate === null ? 0 : r.rate}%;border-radius:6px;transition:width .3s;"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+        ${r.rate === null ? 'No applications in this group yet' : `${r.rate}% got a response`}
+      </div>
+    </div>`).join('');
 }

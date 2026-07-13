@@ -52,8 +52,17 @@
 
   <p id="filter-summary" style="font-size:13px;color:var(--text-muted);margin-bottom:1.5rem;"></p>
 
+  <div class="stats-row" id="stats-row"></div>
+
   <section class="chart-section">
-    <h2 class="chart-title">Applications per day</h2>
+    <div class="chart-header">
+      <h2 class="chart-title">Applications over time</h2>
+      <div class="filter-row" id="granularity-row" style="margin:0;">
+        <button class="filter-btn" data-granularity="day">Day</button>
+        <button class="filter-btn" data-granularity="week">Week</button>
+        <button class="filter-btn" data-granularity="month">Month</button>
+      </div>
+    </div>
     <div id="daily-chart" class="chart-container"></div>
   </section>
 
@@ -72,6 +81,12 @@
       <button class="filter-btn" data-dim="location">Location</button>
       <button class="filter-btn" data-dim="outcome">Outcome</button>
     </div>
+  </section>
+
+  <section class="chart-section">
+    <h2 class="chart-title">Referral &amp; recruiter contact impact</h2>
+    <p class="chart-note">Does a warm intro actually move the needle? Compares how far applications get based on whether they had a referral or inbound recruiter contact.</p>
+    <div id="referral-chart" class="chart-container"></div>
   </section>
 </main>
 

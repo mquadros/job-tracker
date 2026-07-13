@@ -1,0 +1,4 @@
+# Shell scripts run inside Linux containers — force LF regardless of the editing platform's
+# line-ending settings. A CRLF shebang line (`#!/bin/sh\r`) fails with "bad interpreter" inside
+# the container even though it looks fine in a Windows editor.
+*.sh text eol=lf

@@ -15,6 +15,10 @@ services:
       # --- Optional ---
       PORT: 3000
       DB_PATH: /app/data/tracker.db
+      # Only set these to true if this app is ONLY reachable through a reverse proxy that
+      # terminates HTTPS (Nginx Proxy Manager, Caddy, etc.) — see README for details.
+      # TRUST_PROXY: "true"
+      # COOKIE_SECURE: "true"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/login.html"]
       interval: 30s

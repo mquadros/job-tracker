@@ -1,7 +1,7 @@
 # Job Tracker
 
 A self-hosted job application tracker. Track companies, roles, fit, pipeline stage,
-resumes, and notes — with a dashboard, an insights/analytics page, and a Kanban board.
+resumes, and notes, with a dashboard, an insights/analytics page, and a Kanban board.
 Built with Node.js, Express, SQLite, and vanilla JS (no frontend framework, no build
 step). Docker-ready for any host, including TrueNAS/Portainer.
 
@@ -9,17 +9,17 @@ step). Docker-ready for any host, including TrueNAS/Portainer.
 
 ## Features
 
-- **Dashboard** — searchable, filterable card view of every application, with live stats
-- **Insights** — daily-applications bar chart, pipeline funnel, and a breakdown donut
-  chart (by stage, fit, location, or outcome)
-- **Kanban board** — drag-and-drop cards between pipeline stages
-- **Resume / cover letter uploads** — attach the actual file per application, download
+- **Dashboard**: searchable, filterable card view of every application
+- **Insights**: daily-applications bar chart, pipeline funnel, and a breakdown donut
+  chart (by stage, fit, location, or outcome), plus headline stats like response rate
+- **Kanban board**: drag-and-drop cards between pipeline stages
+- **Resume / cover letter uploads**: attach the actual file per application, download
   it back later
 - **CSV export** of the current filtered view
-- **Multi-user** — each user has an isolated, private job list; an admin role can manage
-  accounts
+- **Multi-user**: each user has an isolated, private job list, and an admin role can
+  manage accounts
 - **Dark mode**
-- **Agent/automation access** — a personal API token unlocks either a Claude Code Skill
+- **Agent/automation access**: a personal API token unlocks either a Claude Code Skill
   (curl-based REST access) or a remote MCP server, so an AI agent can add/update/query
   your pipeline on your behalf. See [Agent access](#agent-access) below.
 
@@ -52,8 +52,8 @@ docker compose up -d --build
 
 Open `http://your-server-ip:3000` and log in with the admin credentials you set above.
 
-> **Change your password** after first login — click your username (top right) to open
-> the Profile menu.
+> **Change your password** after first login by clicking your username (top right) to
+> open the Profile menu.
 
 ---
 
@@ -78,7 +78,7 @@ Use Nginx Proxy Manager, Caddy, or Traefik to add HTTPS. Point your proxy at
 
 - **Admin users** can create, view, and remove other users from the user-management
   section at the bottom of their Profile modal.
-- Each user has their own isolated job list — no cross-user visibility.
+- Each user has their own isolated job list, with no cross-user visibility.
 - Passwords are hashed with bcrypt (cost factor 12). JWTs are stored in an httpOnly
   cookie and expire after 7 days.
 
@@ -116,21 +116,23 @@ below); without a `.env` file it falls back to `ADMIN_USER=admin`,
 |--------------|--------------|------------------------------------------|
 | `ADMIN_USER` | `admin`      | Username for the seeded admin account    |
 | `ADMIN_PASS` | `changeme`   | Password for the seeded admin account    |
-| `JWT_SECRET` | *(insecure default)* | Secret for signing JWTs — always set this |
+| `JWT_SECRET` | *(required, no default)* | Secret for signing JWTs. **The app refuses to start without this set.** Generate one with `openssl rand -hex 32` |
 | `PORT`       | `3000`       | Port the server listens on               |
 | `DB_PATH`    | `/app/data/tracker.db` (Docker) / `./data/tracker.db` (local) | Path to SQLite database file |
+| `TRUST_PROXY` | `false` (unset) | Set to `true` only if this app is exclusively reachable through a reverse proxy. Enables Express's `trust proxy`, which the login rate limiter relies on to see real client IPs. Enabling this without an actual proxy in front lets clients spoof their IP via `X-Forwarded-For` and bypass rate limiting. |
+| `COOKIE_SECURE` | `false` (unset) | Set to `true` once the app is served over HTTPS (e.g. behind the reverse proxy above). Marks the session cookie `Secure`, so browsers stop sending it over plain HTTP. Leave unset for a plain-HTTP LAN deployment, or the cookie won't be sent at all and login will silently fail. |
 
 ---
 
 ## Agent access
 
 Each user can generate a personal API token (Profile → API access) that's scoped to the
-jobs API only — it can never change your password, hit admin routes, or regenerate
+jobs API only. It can never change your password, hit admin routes, or regenerate
 itself. Two ways to use it:
 
-- **`job-tracker` Claude Code Skill** (`.claude/skills/job-tracker/`) — plain REST calls
+- **`job-tracker` Claude Code Skill** (`.claude/skills/job-tracker/`): plain REST calls
   over `curl` (or any HTTP client). Works with any agent that has shell access.
-- **Remote MCP server** (`POST /mcp`) — a Streamable HTTP MCP server exposing
+- **Remote MCP server** (`POST /mcp`): a Streamable HTTP MCP server exposing
   `list_jobs`/`find_jobs`/`add_job`/`update_job`/`delete_job` as tools, for MCP-capable
   clients that don't have shell access. Requires the job-tracker instance to be
   network-reachable from wherever the client runs.
@@ -139,16 +141,17 @@ Both authenticate the same way with the same token. In practice, the **Claude Co
 (`claude mcp add --transport http job-tracker http://<host>:3000/mcp --header "Authorization:
 Bearer <token>"`) is the supported MCP client for this endpoint. Claude Desktop's native
 "Add custom connector" UI and the `mcp-remote` bridge both require OAuth, which this app
-doesn't implement (just the bearer token) — neither can complete their auth handshake against
-it. Use the Skill or Claude Code's MCP support; other MCP clients that support a plain static
-bearer header (rather than requiring OAuth) should also work, but haven't been tested here.
+doesn't implement (just the bearer token), so neither can complete their auth handshake
+against it. Use the Skill or Claude Code's MCP support; other MCP clients that support a
+plain static bearer header (rather than requiring OAuth) should also work, but haven't
+been tested here.
 
 ---
 
 ## Contributing
 
 Issues and pull requests are welcome. This is a small, dependency-light codebase on
-purpose (no frontend framework, no bundler) — if you're adding a feature, try to match
+purpose (no frontend framework, no bundler). If you're adding a feature, try to match
 that footprint rather than introducing new build tooling.
 
 ## License
