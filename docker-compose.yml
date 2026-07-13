@@ -8,15 +8,17 @@ services:
     volumes:
       - job-tracker-data:/app/data   # persists SQLite DB across restarts
     environment:
-      # --- CHANGE THESE before first run ---
       ADMIN_USER: admin
-      ADMIN_PASS: changeme          # initial admin password (change after first login)
-      JWT_SECRET: replace-with-a-long-random-string   # openssl rand -hex 32
-      # --- Optional ---
+      # ADMIN_PASS and JWT_SECRET are both auto-generated on first run if you leave them unset.
+      # The generated admin password is printed once to the container logs on first boot
+      # (docker logs job-tracker); JWT_SECRET is saved to the data volume so it survives
+      # restarts. Uncomment either line below to set your own instead.
+      # ADMIN_PASS: your-password-here
+      # JWT_SECRET: your-random-string-here   # e.g. openssl rand -hex 32
       PORT: 3000
       DB_PATH: /app/data/tracker.db
       # Only set these to true if this app is ONLY reachable through a reverse proxy that
-      # terminates HTTPS (Nginx Proxy Manager, Caddy, etc.) — see README for details.
+      # terminates HTTPS (Nginx Proxy Manager, Caddy, etc.), see README for details.
       # TRUST_PROXY: "true"
       # COOKIE_SECURE: "true"
     healthcheck:

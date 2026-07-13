@@ -34,26 +34,26 @@ git clone https://github.com/mquadros/job-tracker.git
 cd job-tracker
 ```
 
-### 2. Configure environment
-
-Edit `docker-compose.yml` before first run:
-
-```yaml
-ADMIN_USER: admin           # your admin username
-ADMIN_PASS: changeme        # your initial admin password
-JWT_SECRET: <random string> # generate with: openssl rand -hex 32
-```
-
-### 3. Build and run
+### 2. Build and run
 
 ```bash
 docker compose up -d --build
 ```
 
+Nothing to configure first. `ADMIN_PASS` and `JWT_SECRET` are both generated automatically
+the first time the container starts, no editing `docker-compose.yml` required.
+
+### 3. Get your admin password
+
+```bash
+docker logs job-tracker
+```
+
 Open `http://your-server-ip:3000` or `http://localhost:3000 and log in with the admin credentials you set above.
 
-> **Change your password** after first login by clicking your username (top right) to
-> open the Profile menu.
+If you'd rather set your own admin password (or your own `JWT_SECRET`) instead of using the
+generated ones, uncomment and fill in the corresponding lines in `docker-compose.yml` before
+first run.
 
 ---
 
@@ -104,9 +104,9 @@ npm run dev   # uses node --watch for auto-reload
 ```
 
 The dev server reads the same environment variables as the Docker image (see table
-below); without a `.env` file it falls back to `ADMIN_USER=admin`,
-`ADMIN_PASS=changeme`, an insecure default `JWT_SECRET`, and a local SQLite file at
-`./data/tracker.db`. Don't use these defaults for anything internet-reachable.
+below); without a `.env` file it uses `ADMIN_USER=admin`, generates an admin password and
+prints it to the console on first run (same as the Docker image), and stores a local SQLite
+file at `./data/tracker.db`.
 
 ---
 
@@ -115,8 +115,8 @@ below); without a `.env` file it falls back to `ADMIN_USER=admin`,
 | Variable     | Default      | Description                              |
 |--------------|--------------|------------------------------------------|
 | `ADMIN_USER` | `admin`      | Username for the seeded admin account    |
-| `ADMIN_PASS` | `changeme`   | Password for the seeded admin account    |
-| `JWT_SECRET` | *(required, no default)* | Secret for signing JWTs. **The app refuses to start without this set.** Generate one with `openssl rand -hex 32` |
+| `ADMIN_PASS` | *(auto-generated)* | Password for the seeded admin account. If unset, a random one is generated on first boot and printed once to the container logs (`docker logs job-tracker`); only takes effect when the admin account is first created |
+| `JWT_SECRET` | *(auto-generated)* | Secret for signing session JWTs. If unset, a random one is generated on first boot and saved to the data volume (`<DB_PATH dir>/.jwt-secret`) so it survives restarts; set your own if you want a specific value or are sharing one secret across multiple instances |
 | `PORT`       | `3000`       | Port the server listens on               |
 | `DB_PATH`    | `/app/data/tracker.db` (Docker) / `./data/tracker.db` (local) | Path to SQLite database file |
 | `TRUST_PROXY` | `false` (unset) | Set to `true` only if this app is exclusively reachable through a reverse proxy. Enables Express's `trust proxy`, which the login rate limiter relies on to see real client IPs. Enabling this without an actual proxy in front lets clients spoof their IP via `X-Forwarded-For` and bypass rate limiting. |

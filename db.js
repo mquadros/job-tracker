@@ -1,13 +1,15 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const fs = require('fs');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'tracker.db');
-const UPLOADS_DIR = path.join(path.dirname(DB_PATH), 'uploads');
+const DATA_DIR = path.dirname(DB_PATH);
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
 // ensure data dir exists
-const fs = require('fs');
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
@@ -90,7 +92,7 @@ if (!userColumns.includes('api_token_created_at')) {
 // One-time backfill: the old single `status` field mixed pipeline stage (Applied,
 // Recruiter screen, Interview, Final round) with terminal outcome (Offer, Rejected,
 // Withdrawn). Split existing rows into the new stage/outcome columns. Best-effort for
-// Rejected/Withdrawn since we don't know which stage they were at when that happened —
+// Rejected/Withdrawn since we don't know which stage they were at when that happened,
 // defaults to 'Applied', correctable by hand afterward.
 if (needsStageMigration && jobColumns.includes('status')) {
   const STATUS_TO_STAGE_OUTCOME = {
@@ -116,18 +118,29 @@ if (needsStageMigration && jobColumns.includes('status')) {
 }
 
 // --- Seed admin user from env if not exists ---
+// Only ever runs once, against an empty users table (the `if (!existing)` check below), which
+// is why ADMIN_USER/ADMIN_PASS only matter on the container's true first boot. If ADMIN_PASS
+// isn't provided, generate a real random one instead of falling back to a guessable default
+// like the old 'changeme', and print it once so the operator can grab it from `docker logs`.
 async function seedAdmin() {
   const adminUser = process.env.ADMIN_USER || 'admin';
-  const adminPass = process.env.ADMIN_PASS || 'changeme';
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(adminUser);
   if (!existing) {
+    const providedPass = process.env.ADMIN_PASS;
+    const adminPass = providedPass || crypto.randomBytes(15).toString('base64url');
     const hash = await bcrypt.hash(adminPass, 12);
     db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(adminUser, hash, 'admin');
-    console.log(`[db] Created admin user: ${adminUser}`);
+    if (providedPass) {
+      console.log(`[db] Created admin user: ${adminUser}`);
+    } else {
+      console.log(`[db] Created admin user "${adminUser}" with a generated password: ${adminPass}`);
+      console.log('[db] This is shown once. Log in and change it from Profile -> Change your password.');
+    }
   }
 }
 
 seedAdmin();
 
 module.exports = db;
+module.exports.DATA_DIR = DATA_DIR;
 module.exports.UPLOADS_DIR = UPLOADS_DIR;
