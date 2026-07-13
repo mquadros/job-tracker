@@ -54,7 +54,8 @@ the first time the container starts, no editing `docker-compose.yml` required.
 docker logs job-tracker
 ```
 
-Open `http://your-server-ip:3000` or `http://localhost:3000 and log in with the admin credentials you set above.
+Open `http://your-server-ip:3000` (or `http://localhost:3000` for local testing) and log in
+with the admin credentials you set above.
 
 If you'd rather set your own admin password (or your own `JWT_SECRET`) instead of using the
 generated ones, uncomment and fill in the corresponding lines in `docker-compose.yml` before
