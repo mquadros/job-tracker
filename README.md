@@ -49,13 +49,7 @@ the first time the container starts, no editing `docker-compose.yml` required.
 docker logs job-tracker
 ```
 
-Look for a line like:
-```
-[db] Created admin user "admin" with a generated password: m5R5kZTnpQfD5lo4q73X
-```
-That's shown once, on first boot only. Open `http://your-server-ip:3000`, log in with it,
-then click your username (top right) to open the Profile menu and set a password you'll
-actually remember.
+Open `http://your-server-ip:3000` or `http://localhost:3000 and log in with the admin credentials you set above.
 
 If you'd rather set your own admin password (or your own `JWT_SECRET`) instead of using the
 generated ones, uncomment and fill in the corresponding lines in `docker-compose.yml` before
