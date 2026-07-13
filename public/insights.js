@@ -110,7 +110,9 @@ function renderDailyChart(jobs) {
   if (!dailyGranularity) dailyGranularity = spanDays > 60 ? 'week' : 'day';
   updateGranularityButtons();
 
-  const counts = new Map();
+  // Group full job objects per bucket, not just a count, so the tooltip can list which
+  // companies/titles landed in that day/week/month.
+  const bucketJobs = new Map();
   dated.forEach(j => {
     const d = parseLocalDate(j.applied_date);
     let key = j.applied_date;
@@ -121,7 +123,8 @@ function renderDailyChart(jobs) {
     } else if (dailyGranularity === 'month') {
       key = monthKey(d);
     }
-    counts.set(key, (counts.get(key) || 0) + 1);
+    if (!bucketJobs.has(key)) bucketJobs.set(key, []);
+    bucketJobs.get(key).push(j);
   });
 
   // Fill gaps for a continuous axis so quiet stretches are visible, not hidden.
@@ -140,22 +143,39 @@ function renderDailyChart(jobs) {
     while (cursor <= maxDate) { allKeys.push(fmtLocalDate(cursor)); cursor.setDate(cursor.getDate() + 1); }
   }
 
-  const data = allKeys.map(k => ({ key: k, count: counts.get(k) || 0 }));
-  const maxCount = Math.max(...data.map(d => d.count), 1);
+  const data = allKeys.map(k => ({ key: k, jobs: bucketJobs.get(k) || [] }));
+  const maxCount = Math.max(...data.map(d => d.jobs.length), 1);
 
+  // Fixed bar width regardless of how many bars there are, that's the actual fix for "hard to
+  // read with lots of dates": rendering the SVG at its natural width (see the svg tag below,
+  // no more capping width to 900px against a wider viewBox) instead of letting the browser
+  // scale the whole drawing down to fit, which is what was squishing every bar illegibly thin.
+  // .chart-container's overflow-x: auto (already in style.css) handles the rest via scrolling.
   const barW = 20, gap = 6, chartH = 200, labelPad = 44, topPad = 20;
   const w = data.length * (barW + gap) + gap;
   const h = chartH + labelPad + topPad;
   const showEveryNth = Math.max(1, Math.ceil(data.length / 20));
   const fmtLabel = dailyGranularity === 'month' ? monthLabel : (k => k);
 
+  // Tooltip lists which companies/titles landed in that bucket, capped so a very dense
+  // month/week bucket doesn't produce an unreadably huge native tooltip.
+  const MAX_TOOLTIP_JOBS = 12;
+  function tooltipFor(d) {
+    const header = `${fmtLabel(d.key)}: ${d.jobs.length} application${d.jobs.length === 1 ? '' : 's'}`;
+    if (!d.jobs.length) return header;
+    const lines = d.jobs.slice(0, MAX_TOOLTIP_JOBS).map(j => `${j.company}: ${j.title}`);
+    if (d.jobs.length > MAX_TOOLTIP_JOBS) lines.push(`+${d.jobs.length - MAX_TOOLTIP_JOBS} more`);
+    return [header, ...lines].join('\n');
+  }
+
   let bars = '';
   data.forEach((d, i) => {
     const x = gap + i * (barW + gap);
-    const barH = (d.count / maxCount) * chartH;
+    const count = d.jobs.length;
+    const barH = (count / maxCount) * chartH;
     const y = topPad + chartH - barH;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--accent)" opacity="${d.count ? 0.85 : 0.15}"><title>${esc(fmtLabel(d.key))}: ${d.count}</title></rect>`;
-    if (d.count) bars += `<text x="${x + barW/2}" y="${y - 4}" font-size="10" text-anchor="middle" style="fill:var(--text-muted)">${d.count}</text>`;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" style="fill:var(--accent)" opacity="${count ? 0.85 : 0.15}"><title>${esc(tooltipFor(d))}</title></rect>`;
+    if (count) bars += `<text x="${x + barW/2}" y="${y - 4}" font-size="10" text-anchor="middle" style="fill:var(--text-muted)">${count}</text>`;
     if (i % showEveryNth === 0) {
       const labelY = topPad + chartH + 14;
       bars += `<text x="${x + barW/2}" y="${labelY}" font-size="9" text-anchor="end" style="fill:var(--text-muted)" transform="rotate(-40 ${x+barW/2} ${labelY})">${esc(fmtLabel(d.key))}</text>`;
@@ -168,7 +188,7 @@ function renderDailyChart(jobs) {
 
   container.innerHTML = `
     ${note ? `<p class="chart-note">${note}</p>` : ''}
-    <svg viewBox="0 0 ${w} ${h}" width="${Math.min(w, 900)}" height="${h}">${bars}</svg>`;
+    <svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${bars}</svg>`;
 }
 
 // ---- Pipeline funnel (Sankey) ----
