@@ -123,8 +123,11 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 /* ---- Job cards ---- */
 /* Single column by request — a multi-column grid was tried but didn't read as well as one
    wide, scannable column, even with the widened main-wrap. Grid is still used (not block +
-   margin) so the gap spacing stays consistent with the rest of the page. */
-#cards-container { display: grid; grid-template-columns: 1fr; gap: 12px; }
+   margin) so the gap spacing stays consistent with the rest of the page. Capped narrower than
+   .main-wrap itself (which stays wide for Insights' charts/stat grid) — at the full 1180px a
+   single card stretched the stage/outcome dropdowns way out to the right of the title, with a
+   big awkward gap in between from .job-card-header's space-between. */
+#cards-container { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 820px; }
 .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; box-shadow: var(--shadow); transition: box-shadow .15s, transform .15s; }
 .job-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .job-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
