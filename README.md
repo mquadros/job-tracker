@@ -50,7 +50,7 @@ JWT_SECRET: <random string> # generate with: openssl rand -hex 32
 docker compose up -d --build
 ```
 
-Open `http://your-server-ip:3000` and log in with the admin credentials you set above.
+Open `http://your-server-ip:3000` or `http://localhost:3000 and log in with the admin credentials you set above.
 
 > **Change your password** after first login by clicking your username (top right) to
 > open the Profile menu.
