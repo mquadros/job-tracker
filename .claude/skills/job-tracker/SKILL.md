@@ -16,17 +16,37 @@ method/path/header/body to whatever tool you actually have.
 
 You need two things: a **base URL** and a personal **API token**.
 
-1. Ask the user for the base URL if you don't already have it — e.g. `http://localhost:3000`
-   for a local instance, or whatever address their self-hosted deployment is reachable at.
+1. Ask the user for the server's **location** and **port** if you don't already have them,
+   then combine them into a base URL — don't just ask for a raw URL, since that leaves the
+   host ambiguous when someone has more than one instance running (e.g. a local dev copy vs.
+   a self-hosted deployment). Ask specifically:
+   - **Location** — `localhost` for an instance running on the same machine, or the
+     remote address (IP or hostname) of a self-hosted deployment otherwise.
+   - **Port** — defaults to `3000` unless they say otherwise.
+
+   Combine as `http://<location>:<port>` (or `https://` if they tell you it's behind TLS).
+   If the user has multiple instances they use regularly, ask which one they mean for this
+   request rather than assuming, and consider storing each under a distinct name in `.env`
+   (e.g. `JOB_TRACKER_URL_LOCAL`, `JOB_TRACKER_URL_REMOTE`) so you don't have to ask every
+   time.
 2. Ask the user to generate a token: in the app, click their username (top right) → **API
    access** → **Generate token**. It's shown once, so ask them to paste it to you right
    after generating it — don't ask them to go dig it up later, it won't be recoverable.
 3. If your environment persists files across turns (e.g. you're working in a local project
-   directory), store both in a `.env` file next to the project so you don't have to ask
-   again next time:
+   directory), store the URL and token in a `.env` file next to the project so you don't have
+   to ask again next time:
    ```
    JOB_TRACKER_URL=http://localhost:3000
    JOB_TRACKER_TOKEN=jt_...
+   ```
+   If the user has more than one instance, use suffixed names instead (`_LOCAL`/`_REMOTE`, or
+   whatever distinguishes them) and ask which pair to use whenever it's not obvious from
+   context:
+   ```
+   JOB_TRACKER_URL_LOCAL=http://localhost:3000
+   JOB_TRACKER_TOKEN_LOCAL=jt_...
+   JOB_TRACKER_URL_REMOTE=http://<remote-address>:3000
+   JOB_TRACKER_TOKEN_REMOTE=jt_...
    ```
    Keep it out of version control (add `.env` to `.gitignore`) — it's a live credential,
    equivalent to a password for the jobs API. If your environment doesn't persist files
