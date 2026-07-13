@@ -134,7 +134,11 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
    pass. Grid is still used (not block + margin) so the gap spacing stays consistent with the
    rest of the page. */
 #cards-container { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; box-shadow: var(--shadow); transition: box-shadow .15s, transform .15s; }
+/* min-width: 0 overrides the grid item default of min-width: auto, which otherwise refuses to
+   shrink a card below the width of its longest unbroken piece of content (e.g. a company name
+   with no spaces) and blows out the whole column past its max-width. overflow-wrap actually
+   lets that long text wrap instead of forcing the overflow in the first place. */
+.job-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; box-shadow: var(--shadow); transition: box-shadow .15s, transform .15s; min-width: 0; overflow-wrap: break-word; }
 .job-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .job-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .job-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.01em; }
