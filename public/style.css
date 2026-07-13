@@ -9,7 +9,7 @@
   --primary: #18181b;
   --primary-fg: #ffffff;
   /* Accent ties buttons/active-states/chart bars into one consistent brand color instead of
-     flat black — pulled from the same blue already used across fit/location/stage badges so
+     flat black, pulled from the same blue already used across fit/location/stage badges so
      it reads as part of the existing palette, not a bolted-on new color. */
   --accent: #3B5FE0;
   --accent-hover: #3151C7;
@@ -90,7 +90,7 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 
 /* ---- Kanban board ---- */
 /* width:fit-content + margin:auto centers the board when the (fixed-width) columns are
-   narrower than the viewport, without touching justify-content — centering overflowing flex
+   narrower than the viewport, without touching justify-content. Centering overflowing flex
    content that way is a known flexbug (the start of the content becomes unreachable by
    scrolling on narrow screens). max-width:100% caps it back down when there isn't enough room,
    so overflow-x:auto still scrolls a flush-left board exactly like before on smaller screens. */
@@ -169,6 +169,9 @@ label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: 
 .chart-container svg { display: block; }
 .chart-empty { color: var(--text-muted); font-size: 13px; padding: 2rem 0; text-align: center; }
 .chart-note { font-size: 12px; color: var(--text-muted); margin-bottom: .5rem; }
+/* Custom hover tooltip shared by all three SVG charts (see showChartTooltip in insights.js),
+   shown immediately on hover instead of the native SVG <title> element's ~1 second delay. */
+.chart-tooltip { position: fixed; display: none; z-index: 500; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-hover); padding: 8px 12px; font-size: 12px; line-height: 1.5; color: var(--text); max-width: 280px; white-space: pre-line; pointer-events: none; }
 
 /* ---- Modal ---- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; }
